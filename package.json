@@ -1,0 +1,24 @@
+{
+  "name": "purplesource",
+  "version": "1.0.0",
+  "description": "Creating a news feed that shows both sides of the political spectrum, with hope that it can bring unity.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sohil-kshirsagar/purplesource.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sohil-kshirsagar/purplesource/issues"
+  },
+  "homepage": "https://github.com/sohil-kshirsagar/purplesource#readme",
+  "dependencies": {
+    "newsapi": "^2.3.0",
+    "nltk-stopwords": "^1.0.3",
+    "string-similarity": "^1.2.1"
+  }
+}
