@@ -19,6 +19,7 @@
   "dependencies": {
     "newsapi": "^2.3.0",
     "nltk-stopwords": "^1.0.3",
+    "replaceall": "^0.1.6",
     "string-similarity": "^1.2.1"
   }
 }
