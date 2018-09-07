@@ -5,16 +5,20 @@ const fs = require('fs');
 const stopwords = require('nltk-stopwords')
 const english = stopwords.load('english')
 const replaceall = require("replaceall");
+const nlp = require('compromise')
+
 
 const similarityThreshold = 0.3;
-const blueSources = ['al-jazeera-english', 'the-new-york-times', 'bbc-news', 'the-huffington-post', 'the-washington-post', 'the-economist', 'politico'];
+const blueSources = ['al-jazeera-english', 'the-new-york-times', 'bbc-news', 'the-huffington-post', 'the-washington-post'];
 const redSources = ['fox-news', 'breitbart-news', 'national-review', 'the-washington-times', 'the-american-conservative'];
+const newsSourcesRemove = ['al jazeera', 'new york times', 'bbc', 'huffington post', 'washington post', 'fox news', 'breitbart', 'national review', 'washington times', 'american conservative']
 const leanings = ['liberal', 'conservative'];
 const categorySynonyms = {
-  trump: ['trump', 'president trump', 'president', 'potus'],
-  immigration: ['immigration', 'immigrants', 'citizenship', 'immigration reform'],
-  guns: ['guns', 'firearms', 'gun control', 'second amendment', 'gun rights'],
-  healthcare: ['healthcare', 'health', 'health insurance']
+  trump: ['trump', 'donald', ' president ', 'potus', ' j '],
+  immigration: ['immigration', 'immigrants'],
+  guns: ['guns', 'firearms', 'gun'],
+  healthcare: ['healthcare', 'health', 'health'],
+  abortion: ['abortion']
 };
 
 function convertSourceArrToStr(sourceArr, connector) {
@@ -49,8 +53,22 @@ async function getArticlesForCategories(categories) {
           sortBy: 'relevancy'
         });
         responseArticles = response['articles'];
+        //change date to readable date
+        /*
+        var dateData = "2018-03-18T22:37:28Z"
+
+        var dateObject = new Date(Date.parse(dateData));
+
+        var dateReadable = dateObject.toDateString();
+
+        console.log(dateReadable); */
+
         for (var i in responseArticles) {
-          delete responseArticles[i]['author']
+          var dateData = responseArticles[i]['publishedAt']
+          var dateObject = new Date(Date.parse(dateData));
+          var dateReadable = dateObject.toDateString();
+          responseArticles[i]['date'] = dateReadable;
+
         }
         categoryDict[categories[c]][leanings[l]] = responseArticles;
       }
@@ -72,24 +90,30 @@ function pairArticles(articles, categories) {
   for (var c in categories) {
     var pairedArticles = [];
     var matchingScores = {};
+    // iterate through every possible pairing of articles from liberal set and conservative set
     for (var i in articles[categories[c]]['liberal']) {
       for (var j in articles[categories[c]]['conservative']) {
-        var titleSimilarity = calculateSimilarity(articles[categories[c]]['liberal'][i]['title'], articles[categories[c]]['conservative'][j]['title'], categories[c]);
-        matchingScores[scoreKey] = score;
-        //doing just title works better, description can have too many words
+        var scoreKey = i.toString() + "-" + j.toString(j);
+        var similarity = calculateSimilarityEntities(articles[categories[c]]['liberal'][i]['title'], articles[categories[c]]['conservative'][j]['title'], articles[categories[c]]['liberal'][i]['description'], articles[categories[c]]['conservative'][j]['description'], categories[c]).length;
+        //var titleSimilarity = calculateSimilarity(articles[categories[c]]['liberal'][i]['title'], articles[categories[c]]['conservative'][j]['title'], categories[c]);
+        matchingScores[scoreKey] = similarity;
+        /* originally was doing title and description and then taking the greater of the two as the similarityScore
+        but doing just title works better, description can have too many words
+        */
         /* var descriptionSimilarity = calculateSimilarity(articles[categories[c]]['liberal'][i]['description'], articles[categories[c]]['conservative'][j]['description'], categories[c]);
         if (titleSimilarity > descriptionSimilarity) {
           var score = titleSimilarity;
         } else {
           var score = descriptionSimilarity;
         }
-        var scoreKey = i.toString() + "-" + j.toString(j);
         matchingScores[scoreKey] = score; */
       }
     }
+    // remove pairings that are below the similarityThreshold
     var filtered = Object.assign(...
       Object.entries(matchingScores).filter(([k,v]) => v>similarityThreshold).map(([k,v]) => ({[k]:v}))
     );
+
     for (var key in filtered) {
       var indexes = key.split("-");
       var pair = {
@@ -107,19 +131,79 @@ function pairArticles(articles, categories) {
 function calculateSimilarity(string1, string2, category) {
   string1 = string1.toLowerCase();
   string2 = string2.toLowerCase();
+  // remove numbers
   string1 = string1.replace(/\d+/g, '');
   string2 = string2.replace(/\d+/g, '');
+  // remove punctuation
   string1 = string1.replace(/[^\w\s]|_/g, "");
   string2 = string2.replace(/[^\w\s]|_/g, "");
   for (w in categorySynonyms[category]) {
+    // remove category words (basically words that are similar to the category we have - prevents matching just because both articles have category)
     string1 = replaceall(categorySynonyms[category][w], "", string1);
     string2 = replaceall(categorySynonyms[category][w], "", string2);
   }
+  // remove stop words (clean up string, remove filler words)
   string1 = stopwords.remove(string1, english);
   string2 = stopwords.remove(string2, english);
+  // NEED TO ADD - removal of news source words (eg. "washington times", "new york times")
+  // remove duplicate words and trim whitespace
   string1 = string1.replace(/(\b\S.+\b)(?=.*\1)/g, "").replace(/\s+/g, " ").trim();
   string2 = string2.replace(/(\b\S.+\b)(?=.*\1)/g, "").replace(/\s+/g, " ").trim();
+  /* One idea is to convert all words to an array and then just count which words are similar (or the same), return that as similarity score
+  can normalize based on average number of words similarity
+  this could work better because then the order of words doesn't make a difference, and it's our own algo
+  */
   return stringSimilarity.compareTwoStrings(string1, string2);
+}
+
+function calculateSimilarityEntities(title1, title2, description1, description2, category) {
+  function getEntities(string1, string2, category) {
+    string1 = string1.toLowerCase();
+    string2 = string2.toLowerCase();
+    // remove numbers
+    string1 = string1.replace(/\d+/g, '');
+    string2 = string2.replace(/\d+/g, '');
+    // remove punctuation
+    string1 = string1.replace(/[^\w\s]|_/g, "");
+    string2 = string2.replace(/[^\w\s]|_/g, "");
+    for (w in categorySynonyms[category]) {
+      // remove category words (basically words that are similar to the category we have - prevents matching just because both articles have category)
+      string1 = replaceall(categorySynonyms[category][w], "", string1);
+      string2 = replaceall(categorySynonyms[category][w], "", string2);
+    }
+    // removal of news source words
+    for (w in newsSourcesRemove) {
+      string1 = replaceall(w, "", string1);
+      string2 = replaceall(w, "", string2);
+    }
+    var s1nlp = nlp(string1);
+    var s2nlp = nlp(string2);
+
+    var s1e = s1nlp.normalize().topics().data();
+    var s2e = s2nlp.normalize().topics().data();
+
+
+    var s1eArr = [];
+    for (e in s1e) {
+      s1eArr.push(s1e[e].normal);
+    }
+    var s2eArr = [];
+    for (e in s2e) {
+      s2eArr.push(s2e[e].normal);
+    }
+    return [s1eArr, s2eArr];
+  }
+  var titleEntities = getEntities(title1, title2, category);
+  var descriptionEntities = getEntities(description1, description2, category);
+  var entities1 = titleEntities[0].concat(descriptionEntities[0]);
+  var entities2 = titleEntities[1].concat(descriptionEntities[1])
+  var intersection = []
+  for (var e1 of entities1) {
+    if (entities2.includes(e1)) {
+        intersection.push(e1)
+    }
+  }
+  return intersection
 }
 
 function writeToFile(dict) {
@@ -127,4 +211,4 @@ function writeToFile(dict) {
   fs.writeFileSync('articles.json', data);
 }
 
-getArticles(['trump']);
+getArticles(['trump', 'immigration', 'guns', 'healthcare', 'abortion']);

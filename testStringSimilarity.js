@@ -3,6 +3,15 @@ const stopwords = require('nltk-stopwords')
 const english = stopwords.load('english')
 const replaceall = require("replaceall");
 
+/*
+var dateData = "2018-03-18T22:37:28Z"
+
+var dateObject = new Date(Date.parse(dateData));
+
+var dateReadable = dateObject.toDateString();
+
+console.log(dateReadable); */
+
 
 var string1 = "The relationship between Rupert Murdoch and Donald J. Trump, a presidential candidate at the time, reached a turning point when they met at Trump International Golf Links Scotland on June 25, 2016.";
 var string2 = "Washington Times Trump slams Democrats' 'phony' excuse of Russia allegations Washington Times President Donald Trump waves as he boards Air Force One with first lady Melania Trump, and Barron Trump, 11, at the Palm Beach International Airport, Sunday, Nov. 26…";

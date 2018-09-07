@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/sohil-kshirsagar/purplesource#readme",
   "dependencies": {
+    "compromise": "^11.12.0",
     "newsapi": "^2.3.0",
     "nltk-stopwords": "^1.0.3",
     "replaceall": "^0.1.6",
