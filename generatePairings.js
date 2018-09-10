@@ -8,7 +8,7 @@ const replaceall = require("replaceall");
 const nlp = require('compromise')
 
 
-const similarityThreshold = 0.5;
+const similarityThreshold = 2;
 const blueSources = ['al-jazeera-english', 'the-new-york-times', 'the-huffington-post', 'the-washington-post', 'cnn'];
 const redSources = ['fox-news', 'breitbart-news', 'national-review', 'the-washington-times', 'the-american-conservative'];
 const newsSourcesRemoveLower = ['al jazeera', 'new york times', 'huffington post', 'washington post', 'cnn', 'fox news', 'breitbart', 'national review', 'washington times', 'american conservative'];
@@ -66,7 +66,8 @@ async function getArticlesForCategories(categories) {
           q: convertSourceArrToStr(categorySynonyms[categories[c]], " OR "),
           sources: sources,
           language: 'en',
-          sortBy: 'relevancy'
+          sortBy: 'relevancy',
+          pageSize: 100
         });
         responseArticles = response['articles'];
         //change date to readable date
